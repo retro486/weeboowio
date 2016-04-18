@@ -18,7 +18,6 @@ var app = angular.module('WioApp', [])
         };
 
         var preloadData = function() {
-          console.debug('Using token ' + $scope.userAccessToken);
           var waits = [];
 
           waits.push($http.get(uri('/v1/scan/drivers', $scope.userAccessToken)).then(function(response) {
@@ -102,20 +101,18 @@ var app = angular.module('WioApp', [])
         };
 
         $scope.save = function(node) {
-          var data = {board_name: node. board, connections: [], access_token: node.node_key};
+          var data = {board_name: node. board, connections: []};
+          $scope.otaStatus[node.node_key] = {ota_status: 'going', ota_msg: 'Sending config...'};
 
           $.each(node.boardObj.interfaceFields, function(i) {
             var field = node.boardObj.interfaceFields[i];
             var driver = node.boardObj.interfaces[field].selectedDriver;
-            var conn = {port: field};
+            if(driver === undefined) return;
 
-            if(driver !== undefined) conn.sku = driver.SKU;
-            else conn.sku = '';
-
-            data.connections.push(conn);
+            data.connections.push({port: field, sku: driver.SKU});
           });
 
-          $http.post($scope.server + '/v1/ota/trigger', data).then(function(response) {
+          $http.post($scope.server + '/v1/ota/trigger?access_token=' + node.node_key, data).then(function(response) {
             $scope.otaStatus[node.node_key] = response.data;
 
             if(response.data.ota_status !== 'error') {
@@ -136,7 +133,9 @@ var app = angular.module('WioApp', [])
             }
           }, function(response) {
             console.debug(response);
-            alert('Unable to save your changes.');
+            $scope.otaStatus[node.node_key]['ota_status'] = 'error';
+            $scope.otaStatus[node.node_key]['ota_msg'] = response.data;
+            // alert('Unable to save your changes.');
           });
         };
       }
