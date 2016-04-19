@@ -40,27 +40,36 @@
           </p>
 
           <div class="row node" ng-repeat="node in nodes">
-            <div class="col-sm-2">
-              <strong>{{node.name}}</strong> <em>({{node.online?'Online':'Offline'}})</em>
+            <div class="col-md-2">
+              <h2>{{node.name}} <em>({{node.online?'Online':'Offline'}})</em></h2>
+            </div>
+            <div class="col-md-10">
+              <table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th><span>Port</span></th>
+                    <th><span>Module</span></th>
+                    <th><span>Preview</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr ng-repeat="port in node.boardObj.interfaceFields">
+                    <td><span>{{port}}</span></td>
+                    <td><span>
+                      <select class="form-control" ng-model="node.config[port]" ng-options="driver as driver.name for driver in node.boardObj.interfaces[port].availableDrivers track by driver.sku">
+                        <option value="">Unused</option>
+                      </select>
+                    </span></td>
+                    <td><span>
+                      <img ng-if="node.config[port]" ng-src="{{node.config[port].image}}" class="img-responsive node-preview" />
+                    </span></td>
+                  </tr>
+                </tbody>
+              </table>
               <button class="btn btn-primary" type="button" ng-if="userAccessToken" ng-click="save(node)">Save</button>
               <div class="alert" ng-class="{false: 'alert-info', true: 'alert-danger'}[otaStatus[node.node_key].ota_status === 'error']" ng-if="otaStatus[node.node_key]">
                 {{otaStatus[node.node_key].ota_msg}}
               </div>
-            </div>
-            <div class="col-sm-10">
-              <table class="table table-striped">
-                <tr ng-repeat="field in node.boardObj.interfaceFields">
-                  <td>{{field}}</td>
-                  <td>
-                    <select class="form-control" ng-model="node.boardObj.interfaces[field].selectedDriver" ng-options="driver as driver.GroveName for driver in node.boardObj.interfaces[field].availableDrivers">
-                      <option value="">Unused</option>
-                    </select>
-                  </td>
-                  <td>
-                    <img ng-if="node.boardObj.interfaces[field].selectedDriver" ng-src="{{node.boardObj.interfaces[field].selectedDriver.ImageURL}}" class="img-responsive node-preview" />
-                  </td>
-                </tr>
-              </table>
             </div>
           </div>
         </div>

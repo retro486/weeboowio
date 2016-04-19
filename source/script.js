@@ -17,12 +17,26 @@ var app = angular.module('WioApp', [])
           return($scope.server + path + '?access_token=' + token);
         };
 
+        var compareByProp = function(a, b, prop) {
+          if(a[prop] < b[prop]) return -1;
+          else if(a[prop] > b[prop]) return 1;
+          else return 0;
+        };
+
         var preloadData = function() {
           var waits = [];
 
           waits.push($http.get(uri('/v1/scan/drivers', $scope.userAccessToken)).then(function(response) {
             // InterfaceType (type used to match ports on board), SKU (used for tracking), GroveName (english readable name), ImageURL (VERY helpful image preview of module - TODO download all these for local hosting...)
-            $scope.drivers = response.data.drivers;
+            $scope.driverMap= {};
+            $scope.drivers = [];
+
+            // Map api keys to something easier to digest for various things.
+            $.each(response.data.drivers, function(i) {
+              $scope.driverMap[this.SKU] = {type: this.InterfaceType, name: this.GroveName, image: this.ImageURL, sku: this.SKU};
+              $scope.drivers.push({type: this.InterfaceType, name: this.GroveName, image: this.ImageURL, sku: this.SKU});
+            });
+
             return response;
           }, function(response) {
             console.debug(response);
@@ -45,9 +59,14 @@ var app = angular.module('WioApp', [])
             $scope.nodes = response.data.nodes;
 
             $.each($scope.nodes, function(i) {
-              var node = this;
-              $http.get(uri('/v1/node/config', node.node_key)).then(function(response) {
-                node.config = response.data; // will only contain an error field if config doesn't yet exist
+              $scope.nodes[i].config = {};
+
+              $http.get(uri('/v1/node/config', $scope.nodes[i].node_key)).then(function(response) {
+                if(response.data.config.connections) {
+                  $.each(response.data.config.connections, function(i) {
+                    $scope.nodes[i].config[this.port] = $scope.driverMap[this.sku];
+                  });
+                }
               }, function(response) {
                 console.debug('Unable to get node config:', response);
               })
@@ -70,7 +89,7 @@ var app = angular.module('WioApp', [])
                 // Map interfaces with their available driver types
                 $.each($scope.nodes[i].boardObj.interfaceFields, function(j) {
                   var type = $scope.nodes[i].boardObj.interfaces[this].type;
-                  $scope.nodes[i].boardObj.interfaces[this].availableDrivers = $filter('filter')($scope.drivers, {InterfaceType: type}).sort();
+                  $scope.nodes[i].boardObj.interfaces[this].availableDrivers = $filter('filter')($scope.drivers, {type: type});
                 });
               }
             });
@@ -101,15 +120,14 @@ var app = angular.module('WioApp', [])
         };
 
         $scope.save = function(node) {
-          var data = {board_name: node. board, connections: []};
+          var data = {board_name: node.board, connections: []};
           $scope.otaStatus[node.node_key] = {ota_status: 'going', ota_msg: 'Sending config...'};
 
-          $.each(node.boardObj.interfaceFields, function(i) {
-            var field = node.boardObj.interfaceFields[i];
-            var driver = node.boardObj.interfaces[field].selectedDriver;
-            if(driver === undefined) return;
+          $.each(Object.keys(node.config), function(i) {
+            var port = this;
+            var sku = node.config[port].sku;
 
-            data.connections.push({port: field, sku: driver.SKU});
+            data.connections.push({port: port, sku: sku});
           });
 
           $http.post($scope.server + '/v1/ota/trigger?access_token=' + node.node_key, data).then(function(response) {
