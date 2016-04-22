@@ -1,5 +1,3 @@
-// Code goes here
-
 var app = angular.module('WioApp', [])
   .config(function($httpProvider) {
     $httpProvider.defaults.useXDomain = true;
@@ -8,19 +6,14 @@ var app = angular.module('WioApp', [])
     return {
       restrict: 'A',
       controller: function($scope, $http, $q, $filter, $interval) {
-        $scope.server = 'http://wio.rdkl.us';
         $scope.user = {};
-        $scope.userAccessToken = localStorage.getItem('userAccessToken');
         $scope.otaStatus = {};
+
+        $scope.server = localStorage.getItem('server');
+        $scope.userAccessToken = localStorage.getItem('userAccessToken');
 
         var uri = function(path, token) {
           return($scope.server + path + '?access_token=' + token);
-        };
-
-        var compareByProp = function(a, b, prop) {
-          if(a[prop] < b[prop]) return -1;
-          else if(a[prop] > b[prop]) return 1;
-          else return 0;
         };
 
         var preloadData = function() {
@@ -96,17 +89,13 @@ var app = angular.module('WioApp', [])
           });
         };
 
-        if($scope.userAccessToken) {
-          preloadData();
-        }
-
         $scope.logIn = function() {
-          $http.post($scope.server + '/v1/user/login?password=' + $scope.user.password +
-            '&email=' + $scope.user.email)
+          $http.post($scope.server + '/v1/user/login', {password: $scope.user.password, email: $scope.user.email})
             .then(function(response) {
               $scope.user = {};
               $scope.userAccessToken = response.data.token;
               localStorage.setItem('userAccessToken', $scope.userAccessToken);
+              localStorage.setItem('server', $scope.server);
               preloadData();
             }, function(response) {
               console.debug(response);
@@ -117,6 +106,7 @@ var app = angular.module('WioApp', [])
         $scope.logOut = function() {
           $scope.userAccessToken = undefined;
           localStorage.removeItem('userAccessToken');
+          localStorage.removeItem('server');
         };
 
         $scope.save = function(node) {
@@ -153,9 +143,14 @@ var app = angular.module('WioApp', [])
             console.debug(response);
             $scope.otaStatus[node.node_key]['ota_status'] = 'error';
             $scope.otaStatus[node.node_key]['ota_msg'] = response.data;
-            // alert('Unable to save your changes.');
           });
         };
+
+        if($scope.userAccessToken && !$scope.server) {
+          $scope.logOut();
+        } else if($scope.userAccessToken) {
+          preloadData();
+        }
       }
     };
   });
