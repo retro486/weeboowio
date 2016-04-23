@@ -54,14 +54,14 @@ var app = angular.module('WioApp', [])
             $.each($scope.nodes, function(i) {
               $scope.nodes[i].config = {};
 
-              $http.get(uri('/v1/node/config', $scope.nodes[i].node_key)).then(function(response) {
-                if(response.data.config.connections) {
-                  $.each(response.data.config.connections, function(i) {
+              $http.get(uri('/v1/node/config', $scope.nodes[i].node_key)).then(function(resp) {
+                if(resp.data.config.connections) {
+                  $.each(resp.data.config.connections, function() {
                     $scope.nodes[i].config[this.port] = $scope.driverMap[this.sku];
                   });
                 }
-              }, function(response) {
-                console.debug('Unable to get node config:', response);
+              }, function(resp) {
+                console.debug('Unable to get node config:', resp);
               })
             });
             return response;
@@ -114,6 +114,8 @@ var app = angular.module('WioApp', [])
           $scope.otaStatus[node.node_key] = {ota_status: 'going', ota_msg: 'Sending config...'};
 
           $.each(Object.keys(node.config), function(i) {
+            if(node.config[this] === null) return; // Set a value, saved, then cleared it.
+
             var port = this;
             var sku = node.config[port].sku;
 
